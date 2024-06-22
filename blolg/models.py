@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils import timezone
 from django.contrib.auth.models import User
+from django.urls import reverse
 #from .managers  import PublishManager
 
 # Create your models here.
@@ -13,7 +14,7 @@ class Post(models.Model):
         PUBLISHED = 'PB', 'Published'
 
     title = models.CharField(max_length=250) 
-    slug = models.SlugField(max_length=250) 
+    slug = models.SlugField(max_length=250, unique_for_date='publish') 
     author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='blog_posts')
     body = models.TextField()
     publish = models.DateTimeField(default=timezone.now)
@@ -33,6 +34,5 @@ class Post(models.Model):
         return self.title
 
 
-class PublishedManager(models.Manager): 
-    def get_queryset(self):
-        return super().get_queryset().filter(status=Post.Status.PUBLISHED)
+    def get_absolute_url(self):
+        return reverse('blolg:post_detail', args=[self.publish.year, self.publish.month, self.publish.day, self.slug])
