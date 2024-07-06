@@ -4,7 +4,9 @@ from .models import Post, Comment
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.views.generic import ListView
 from .forms import EmailPostForm, CommentForm
-from django.core.mail import send_mail
+from django.core.mail import send_mail, EmailMultiAlternatives
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
 from django.views.decorators.http import require_POST
 from taggit.models import Tag
 from django.db.models import Count
@@ -26,11 +28,20 @@ def post_share(request, post_id):
         if form.is_valid():
             cd = form.cleaned_data
             post_url = request.build_absolute_uri(post.get_absolute_url())
-            subject = f"{cd['name']} recommends you read " \
+            my_subject = f"{cd['name']} recommends you read " \
                       f"{post.title}"
-            message = f"Read {post.title} at {post_url}\n\n" \
-                      f"{cd['name']}\'s comments: {cd['comments']}"
-            send_mail(subject, message, 'ivan123reactions@gmail.com', [cd['to']])
+            html_message = render_to_string("blolg/email.html")
+            plain_message = strip_tags(html_message)
+            #message = f"Read {post.title} at {post_url}\n\n f"{cd['name']}\'s comments: {cd['comments']}"
+            message = EmailMultiAlternatives(
+                subject = my_subject,
+                body= plain_message,
+                from_email= 'ivan123reactions@gmail.com' ,
+                to= [cd['to']]
+            )
+            message.attach_alternative(html_message, "text/html")
+            message.send()
+            #send_mail(subject, message, 'ivan123reactions@gmail.com', [cd['to']])
             sent = True
     else:
         form = EmailPostForm()
@@ -59,9 +70,9 @@ def post_detail(request, year, month, day, post):
     comments = post.comments.filter(active=True)
     form = CommentForm()
     post_tags_ids = post.tags.values_list('id', flat=True)
-    similar_posts = Post.published.filter(tags__in=post_tags_ids).exclude(id=post.id)
-    similar_posts = similar_posts.annotate(same_tags=Count('tags')).order_by('-same_tags','-publish')[:4]
-    return render(request, 'blolg/post/detail.html',{'post': post, 'comments': comments, 'form': form, 'similar_posts': similar_posts})
+    #similar_posts = Post.published.filter(tags__in=post_tags_ids).exclude(id=post.id)
+    #similar_posts = similar_posts.annotate(same_tags=Count('tags')).order_by('-same_tags','-publish')[:4]
+    return render(request, 'blolg/post/detail.html',{'post': post, 'comments': comments, 'form': form})#, 'similar_posts': similar_posts})
 
 
 @require_POST
