@@ -28,28 +28,34 @@ def post_share(request, post_id):
         if form.is_valid():
             cd = form.cleaned_data
             post_url = request.build_absolute_uri(post.get_absolute_url())
-            my_subject = f"{cd['name']} recommends you read " \
+            subject = f"{cd['name']} recommends you read " \
                       f"{post.title}"
-            html_message = render_to_string("blolg/email.html")
-            plain_message = strip_tags(html_message)
-            #message = f"Read {post.title} at {post_url}\n\n f"{cd['name']}\'s comments: {cd['comments']}"
-            message = EmailMultiAlternatives(
-                subject = my_subject,
-                body= plain_message,
-                from_email= 'ivan123reactions@gmail.com' ,
-                to= [cd['to']]
-            )
-            message.attach_alternative(html_message, "text/html")
-            message.send()
-            #send_mail(subject, message, 'ivan123reactions@gmail.com', [cd['to']])
+            message = f"Read {post.title} at {post_url}\n\n {cd['name']}\'s comments: {cd['comments']}"
+            html_message = render_to_string("blolg/email.html", {
+                "post": post,
+                "post_url": post_url,
+                "name": cd['name'],
+                "comments": cd['comments']
+            })
+            # plain_message = strip_tags(html_message)
+            # message = EmailMultiAlternatives(
+            #     subject = my_subject,
+            #     body= plain_message,
+            #     from_email= 'ivan123reactions@gmail.com' ,
+            #     to= [cd['to']]
+            # )
+            # message.attach_alternative(html_message, "text/html")
+            # message.send()
+            send_mail(subject, message, 'ivan123reactions@gmail.com', [cd['to']], html_message=html_message)
             sent = True
     else:
         form = EmailPostForm()
     return render(request, 'blolg/post/share.html', {'post': post, 'form': form})
+#    return render_to_response('blolg/email.html', {'massage': massage})
 
 
 def post_list(request, tag_slug=None):
-    post_list = Post.objects.filter(status='PB')
+    post_list = Post.published.all()
     tag = None
     if tag_slug:
         tag = get_object_or_404(Tag, slug=tag_slug)
@@ -70,8 +76,8 @@ def post_detail(request, year, month, day, post):
     comments = post.comments.filter(active=True)
     form = CommentForm()
     post_tags_ids = post.tags.values_list('id', flat=True)
-    #similar_posts = Post.published.filter(tags__in=post_tags_ids).exclude(id=post.id)
-    #similar_posts = similar_posts.annotate(same_tags=Count('tags')).order_by('-same_tags','-publish')[:4]
+    similar_posts = Post.objects.filter(tags__in = post_tags_ids).exclude(id=post.id)
+    similar_posts = similar_posts.annotate(same_tags = Count('tags')).order_by('-same_tags', '-publish')[:4]
     return render(request, 'blolg/post/detail.html',{'post': post, 'comments': comments, 'form': form})#, 'similar_posts': similar_posts})
 
 
